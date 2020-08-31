@@ -1,10 +1,10 @@
 // コードジェネレータ
 #include "9cc.h"
 
+// 指定されたノードのアドレスをスタックにプッシュする
 static void gen_addr(Node *node) {
   if (node->kind == ND_VAR) {
-    int offset = (node->name - 'a' + 1) * 8;
-    printf("\tlea rax, [rbp-%d]\n", offset);
+    printf("\tlea rax, [rbp-%d]\n", node->var->offset);
     printf("\tpush rax\n");
     return;
   }
@@ -28,7 +28,7 @@ static void store() {
 static void gen(Node *node) {
   switch (node->kind) {
     case ND_NUM:
-      printf("\tpush %d\n", node->val);
+      printf("\tpush %ld\n", node->val);
       return;
     case ND_EXPR_STMT:
       gen(node->lhs);
@@ -96,7 +96,7 @@ static void gen(Node *node) {
 
 }
 
-void codegen(Node *node) {
+void codegen(Function *prog) {
   // アセンブリの前半部分を出力
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
@@ -105,11 +105,11 @@ void codegen(Node *node) {
   // プロローグ
   printf("\tpush rbp\n");
   printf("\tmov rbp, rsp\n");
-  printf("\tsub rsp, 208\n");
+  printf("\tsub rsp, %d\n", prog->stack_size);
 
   // 抽象構文木を下りながらコード生成
-  for (Node *n = node; n; n = n->next)
-    gen(n);
+  for (Node *node = prog->node; node; node = node->next)
+    gen(node);
 
   // エピローグ
   printf(".L.return:\n");

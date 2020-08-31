@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -22,7 +23,7 @@ typedef struct Token Token;
 struct Token {
   TokenKind kind; // トークンの型
   Token *next;    // 次の入力トークン
-  int val;        // kindがTK_NUMの場合、その数値
+  long val;        // kindがTK_NUMの場合、その数値
   char *str;      // トークン文字列
   int len;        // トークンの長さ
 };
@@ -30,7 +31,7 @@ struct Token {
 void error(char *fmt, ...); // エラーを報告するための関数。printfと同じ引数を取る
 void error_at(char *loc, char *fmt, ...);   // エラー箇所を報告する
 bool consume(char *op); // 次のトークンが期待している記号のときには、トークンを１つ読み進めて真を返す。それ以外の場合には偽を返す。
-Token *consume_ident(void); 
+Token *consume_ident(void);   // 現在のトークンが識別子の場合、それを消費する
 void expect(char *op);  // 次のトークンが期待している記号のときには、トークンを１つ読み進める。それ以外のときにはエラーを報告する。
 long expect_number(void);    // 次のトークンが数値の場合、トークンを1つ読み進めてその数値を返す。それ以外の場合にはエラーを報告する。
 bool at_eof(void);  // トークンの種類が終端(TK_EOF)の場合、trueを返す
@@ -42,6 +43,14 @@ extern Token *token;    // 現在注目しているトークン
 /**************************/
 /*        parse.c         */
 /**************************/
+
+// ローカル変数の型
+typedef struct Var Var;
+struct Var {
+  Var *next; // 次の変数かNULL
+  char *name; // 変数の名前
+  int offset; // RBPからのオフセット
+};
 
 // 抽象構文木のノードの種類
 typedef enum {
@@ -67,15 +76,22 @@ struct Node {
   Node *next;    // 次のノード
   Node *lhs;     // 左辺
   Node *rhs;     // 右辺
-  char name;     // kindがND_VARの場合のみ使う
-  int val;       // kindがND_NUMの場合のみ使う
+  Var *var;     // kindがND_VARの場合のみ使う
+  long val;       // kindがND_NUMの場合のみ使う
 };
 
-Node *program(void);
+typedef struct Function Function;
+struct Function {
+  Node *node;
+  Var *locals;
+  int stack_size;
+};
+
+Function *program(void);
 
 /**************************/
 /*       codegen.c        */
 /**************************/
 
 // アセンブリを出力する
-void codegen(Node *node);
+void codegen(Function *prog);
