@@ -1,11 +1,53 @@
 // コードジェネレータ
 #include "9cc.h"
 
+static void gen_addr(Node *node) {
+  if (node->kind == ND_VAR) {
+    int offset = (node->name - 'a' + 1) * 8;
+    printf("\tlea rax, [rbp-%d]\n", offset);
+    printf("\tpush rax\n");
+    return;
+  }
+  error("左辺値ではありません");
+}
+
+static void load() {
+  printf("\tpop rax\n");
+  printf("\tmov rax, [rax]\n");
+  printf("\tpush rax\n");
+}
+
+static void store() {
+  printf("\tpop rdi\n");
+  printf("\tpop rax\n");
+  printf("\tmov [rax], rdi\n");
+  printf("\tpush rdi\n");
+}
+
 // アセンブリを出力する（再帰関数）
 static void gen(Node *node) {
-  if (node->kind == ND_NUM) {
-    printf("\tpush %d\n", node->val);
-    return;
+  switch (node->kind) {
+    case ND_NUM:
+      printf("\tpush %d\n", node->val);
+      return;
+    case ND_EXPR_STMT:
+      gen(node->lhs);
+      printf("\tadd rsp, 8\n");
+      return;
+    case ND_VAR:
+      gen_addr(node);
+      load();
+      return;
+    case ND_ASSIGN:
+      gen_addr(node->lhs);
+      gen(node->rhs);
+      store();
+      return;
+    case ND_RETURN:
+      gen(node->lhs);
+      printf("\tpop rax\n");
+      printf("\tjmp .L.return\n");
+      return;
   }
 
   gen(node->lhs);
@@ -60,11 +102,19 @@ void codegen(Node *node) {
   printf(".global main\n");
   printf("main:\n");
 
-  // 抽象構文木を下りながらコード生成
-  gen(node);
+  // プロローグ
+  printf("\tpush rbp\n");
+  printf("\tmov rbp, rsp\n");
+  printf("\tsub rsp, 208\n");
 
-  // スタックストップに式全体の値が残っているはずなので
-  // それをRAXにロードしてから関数からの返り値とする
-  printf("\tpop rax\n");
+  // 抽象構文木を下りながらコード生成
+  for (Node *n = node; n; n = n->next)
+    gen(n);
+
+  // エピローグ
+  printf(".L.return:\n");
+  printf("\tmov rsp, rbp\n");
+  printf("\tpop rbp\n");
+
   printf("\tret\n");
 }

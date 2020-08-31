@@ -12,6 +12,7 @@
 // トークンの種類
 typedef enum {
   TK_RESERVED,  // 記号
+  TK_IDENT,     // 識別子
   TK_NUM,       // 整数トークン
   TK_EOF,       // 入力の終わりを表すトークン
 } TokenKind;
@@ -29,6 +30,7 @@ struct Token {
 void error(char *fmt, ...); // エラーを報告するための関数。printfと同じ引数を取る
 void error_at(char *loc, char *fmt, ...);   // エラー箇所を報告する
 bool consume(char *op); // 次のトークンが期待している記号のときには、トークンを１つ読み進めて真を返す。それ以外の場合には偽を返す。
+Token *consume_ident(void); 
 void expect(char *op);  // 次のトークンが期待している記号のときには、トークンを１つ読み進める。それ以外のときにはエラーを報告する。
 long expect_number(void);    // 次のトークンが数値の場合、トークンを1つ読み進めてその数値を返す。それ以外の場合にはエラーを報告する。
 bool at_eof(void);  // トークンの種類が終端(TK_EOF)の場合、trueを返す
@@ -43,27 +45,33 @@ extern Token *token;    // 現在注目しているトークン
 
 // 抽象構文木のノードの種類
 typedef enum {
-  ND_ADD, // +
-  ND_SUB, // -
-  ND_MUL, // *
-  ND_DIV, // /
-  ND_EQ,  // ==
-  ND_NE,  // !=
-  ND_LT,  // <
-  ND_LE,  // <=
-  ND_NUM, // 整数
+  ND_ADD,       // +
+  ND_SUB,       // -
+  ND_MUL,       // *
+  ND_DIV,       // /
+  ND_EQ,        // ==
+  ND_NE,        // !=
+  ND_LT,        // <
+  ND_LE,        // <=
+  ND_ASSIGN,    // =
+  ND_RETURN,    // "return"
+  ND_EXPR_STMT, // 式(expression) ステートメント(statement)
+  ND_VAR,       // ローカル変数
+  ND_NUM,       // 整数
 } NodeKind;
 
 // 抽象構文木のノードの型
 typedef struct Node Node;
 struct Node {
   NodeKind kind; // ノードの型
+  Node *next;    // 次のノード
   Node *lhs;     // 左辺
   Node *rhs;     // 右辺
+  char name;     // kindがND_VARの場合のみ使う
   int val;       // kindがND_NUMの場合のみ使う
 };
 
-Node *expr(void);
+Node *program(void);
 
 /**************************/
 /*       codegen.c        */
